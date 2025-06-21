@@ -1,20 +1,17 @@
 import asyncio
 import json
+
 from contextlib import AsyncExitStack
 from typing import Any, Dict, List, Optional
-
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from openai import AsyncOpenAI
-
-OPEN_AI_API_KEY = "api-key-1234567890abcdefg"  # Replace with your actual OpenAI API key
-OPEN_AI_MODEL = "gpt-4o-mini"
+from models import EventConfirmation
 
 
 class MCPOpenAIClient:
     """Client for interacting with OpenAI models using MCP tools."""
-
-    def __init__(self, model: str = "gpt-4o"):
+    def __init__(self, model: str, openai_client: AsyncOpenAI):
         """
         Initialize the OpenAI MCP client.
         Args:
@@ -23,10 +20,8 @@ class MCPOpenAIClient:
         # Initialize session and client objects
         self.session: Optional[ClientSession] = None
         self.exit_stack = AsyncExitStack()
-        self.openai_client = AsyncOpenAI(
-            api_key=OPEN_AI_API_KEY
-        )
-        self.model = OPEN_AI_MODEL
+        self.openai_client = openai_client
+        self.model = model
         self.stdio: Optional[Any] = None
         self.write: Optional[Any] = None
 
@@ -88,7 +83,7 @@ class MCPOpenAIClient:
             for tool in tools_result.tools
         ]
 
-    async def process_query(self, query: str) -> str:
+    async def process_query(self, prompt: list[dict[str, Any]]) -> EventConfirmation:
         """
         Process a query using OpenAI and available MCP tools.
         Args:
@@ -105,9 +100,10 @@ class MCPOpenAIClient:
         # Initial OpenAI API call
         response = await self.openai_client.chat.completions.create(
             model=self.model,
-            messages=[{"role": "user", "content": query}],
+            messages=prompt,
             tools=tools,
             tool_choice="auto",
+            response_format=EventConfirmation,
         )
 
         # Get assistant's response
@@ -115,7 +111,7 @@ class MCPOpenAIClient:
 
         # Initialize conversation with user query and assistant response
         messages = [
-            {"role": "user", "content": query},
+            *prompt,
             assistant_message,
         ]
 
@@ -129,7 +125,6 @@ class MCPOpenAIClient:
                         tool_call.function.name,
                         arguments=json.loads(tool_call.function.arguments),
                     )
-
                     # Add tool response to conversation
                     messages.append(
                         {
@@ -155,12 +150,12 @@ class MCPOpenAIClient:
                 messages=messages,
                 tools=tools,
                 tool_choice="none",  # Don't allow more tool calls
+                response_format=EventConfirmation,
             )
-
-            return final_response.choices[0].message.content
-
+            return final_response.choices[0].message.parsed
+        #
         # No tool calls, just return the direct response
-        return assistant_message.content
+        return assistant_message.message.parsed
 
     async def cleanup(self):
         """Clean up resources."""
@@ -178,6 +173,7 @@ class MCPOpenAIClient:
         await self.cleanup()
 
 
+'''
 async def main():
     """Main entry point for the client."""
     try:
@@ -203,3 +199,4 @@ if __name__ == "__main__":
         print("Application interrupted by user")
     except Exception as e:
         print(f"Application error: {e}")
+'''

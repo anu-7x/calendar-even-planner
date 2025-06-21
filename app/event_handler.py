@@ -5,7 +5,11 @@ from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 from const.const import OPEN_AI_MODEL
 
+from mcp_client.client import MCPOpenAIClient
+from models import EventConfirmation, EventExtraction, EventDetails
 
+# todo: remove these!
+'''
 class EventConfirmation(BaseModel):
     """Third LLM call: Generate confirmation message"""
     confirmation_message: str = Field(
@@ -31,11 +35,12 @@ class EventDetails(BaseModel):
     )
     duration_minutes: int = Field(description="Expected duration in minutes")
     participants: list[str] = Field(description="List of participants")
-
+'''
 
 class EventCreationHandler:
-  def __init__(self, openai_client: AsyncOpenAI):
+  def __init__(self, openai_client: AsyncOpenAI, mcp_client: MCPOpenAIClient):
     self.openai_client = openai_client
+    self.mcp_client = mcp_client
     self.model = OPEN_AI_MODEL
 
   async def initialize_event(self, user_prompt: str) -> Optional[EventConfirmation]:
@@ -95,6 +100,16 @@ class EventCreationHandler:
     print(f" --> [__event_creation] Creating calendar event with details: {event_details}")
     # Here you would typically create the event in your calendar system
     # todo: this is where we going to use the MCP client to create the event in the calendar using tools.
+    llm_promopt: list[dict[str, Any]] = [
+         { # system prompt
+               "role": "system",
+               "content": "Create a calendar event with the provided details.",
+         },
+         { # user prompt
+               "role": "user",
+               "content": f"Create an event named '{event_details.name}' on {event_details.date} for {event_details.duration_minutes} minutes with participants: {', '.join(event_details.participants)}.",
+         }
+    ]
     
     # For demonstration, we will just return a mock confirmation
     confirmation = EventConfirmation(
