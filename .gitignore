@@ -192,3 +192,8 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+
+# pycharm
+.idea/
+#  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
